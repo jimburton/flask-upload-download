@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<table>
+  <tr>
+    <td class="pl-5"><b>Starter:</b></td>
+    <td class="pl-5">{{ order.starter[0] }}</td>
+    <td>{{ order.starter[1] }}</td>
+  </tr>
+  <tr>
+    <td class="pl-5"><b>Main:</b></td>
+    <td class="pl-5">{{ order.main[0] }}</td>
+    <td>{{ order.main[1] }}</td>
+  </tr>
+  <tr>
+    <td class="pl-5"><b>Desert:</b></td>
+    <td class="pl-5">{{ order.desert[0] }}</td>
+    <td>{{ order.desert[1] }}</td>
+  </tr>
+  <tr>
+    <td colspan=2 class="pl-5"><b>Total:</b></td>
+    <td>{{ "{:.2f}".format(order.total) }}</td>
+  </tr>
+  <tr>
+    <td><a href={{ url_for('download_receipt', order=order) }}>Download receipt</a></td>
+    <td colspan=2 class="pl-5">&nbsp;</td>
+  </tr>
+</table>
+
+{% endblock %}
