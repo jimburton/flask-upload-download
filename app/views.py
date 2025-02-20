@@ -8,12 +8,14 @@ import csv
 import io
 import ast
 
+# Global var holding the menu, parsed from the csv.
 menu_items = {}
-
+# Flag to check whether this is the first request, used to load the menu_items.
 first_request = True
 
 @app.before_request
 def before_first_request():
+    """Hook to run before the first request. Loads the CSV file containing the menu."""
     global first_request
     global menu_items
     if first_request:
@@ -30,32 +32,25 @@ def before_first_request():
         except Exception as err:
             app.logger.error(f'Exception occurred: {err=}')
 
-
-# Utility function to attempt to remove a file but silently cancel any exceptions if anything goes wrong
-def silent_remove(filepath):
-    try:
-        os.remove(filepath)
-    except:
-        pass
-    return
-
 @app.route("/")
 def home():
+    """View for the home page."""
     return render_template('home.html', name='James', title="Home")
 
 @app.route('/menu')
 def menu():
+    """View that displays the menu."""
     global menu_items
     return render_template('menu.html', title='Menu', menu=menu_items)
 
 @app.route('/order', methods=['GET', 'POST'])
 def order():
+    """
+    View presenting a form allowing the user to order a meal. On form submission the browser is
+    redirected to display the receipt.
+    """
     global menu_items
     form = MenuForm(menu_items)
-    app.logger.debug(f'{form.starter.data=}')
-    app.logger.debug(f'{form.main.data=}')
-    app.logger.debug(f'{form.desert.data=}')
-    app.logger.debug(f'{form.validate_on_submit()=}')
     if form.validate_on_submit():
         starter = lookup_dish('Starter', form.starter.data)
         main    = lookup_dish('Main', form.main.data)
@@ -67,14 +62,16 @@ def order():
 
 @app.route('/receipt/<order>')
 def receipt(order):
+    """View that displays the receipt for an order."""
     order_dict = ast.literal_eval(order)
     return render_template('receipt.html', title='Receipt', order=order_dict)
 
 @app.route('/download_receipt/<order>')
 def download_receipt(order):
+    """View that creates a receipt file then sends it to the client as an attachment."""
     order_dict = ast.literal_eval(order)
     try:
-        fmt_line = '{0:<10} {1:<25} {2:>8}'
+        fmt_line = '{0:<10} {1:<25} {2:>8}' # format the file contents in columns.
         sep_line = '-'*45
         starter_line = fmt_line.format('Starter', order_dict["starter"][0], order_dict["starter"][1])
         main_line = fmt_line.format('Main', order_dict["main"][0], order_dict["main"][1])
@@ -94,18 +91,20 @@ def download_receipt(order):
 @app.route('/upload_menu', methods=['GET', 'POST'])
 def upload_menu():
     """
-    View that allows the user to upload a menu file, then download a CSV containing the
-    same contents but sorted by course then price.
+    View that allows the user to upload a CSV file containing a menu, then sorts the data by course and
+    price, and finally sends it back to the the client as an attachment.
     """
     menu = {}
     form = MenuUploadCSVForm()
     if form.validate_on_submit():
         if form.file.data:
+            # Make a unique name for the file and save it to the uploads directory.
             unique_str = str(uuid4())
             filename = secure_filename(f'{unique_str}-{form.file.data.filename}')
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             form.file.data.save(filepath)
             try:
+                # Open the file and parse its contents into a dict.
                 with open(filepath, newline='') as csvFile:
                     reader = csv.reader(csvFile)
                     error_count = 0
@@ -143,6 +142,7 @@ def upload_menu():
             finally:
                 silent_remove(filepath)
             try:
+                # Sort the uploaded data then write it to a CSV and send to the client. 
                 app.logger.debug(f'{sorted(menu.keys())=}')
                 output_str = ""
                 line = ['Course','Dish','Price']
@@ -190,3 +190,11 @@ def lookup_dish(course, dish):
         if data[0] == dish:
             return (data[0],data[1])
     return None
+
+def silent_remove(filepath):
+    """Utility function to attempt to remove a file but silently cancel any exceptions if anything goes wrong."""
+    try:
+        os.remove(filepath)
+    except Exception:
+        pass
+    return
