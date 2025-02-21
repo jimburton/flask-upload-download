@@ -7,4 +7,15 @@
         {{ wtf.form_field(form.file, False) }}
         {{ wtf.form_field(form.submit, False) }}
     </form>
+
+    {% if download_file %}
+    <script>
+      window.onload = function(){
+	  var a = document.createElement("a");
+	  a.href = "{{url_for('download_menu', path=download_file)}}";
+	  a.download = true;
+	  a.click();
+      };
+    </script>
+    {% endif %}
 {% endblock %}

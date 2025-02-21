@@ -7,6 +7,8 @@ import os
 import csv
 import io
 import ast
+import tempfile as tfile
+import urllib
 
 # Global var holding the menu, parsed from the csv.
 menu_items = {}
@@ -76,7 +78,7 @@ def download_receipt(order):
         starter_line = fmt_line.format('Starter', order_dict["starter"][0], order_dict["starter"][1])
         main_line = fmt_line.format('Main', order_dict["main"][0], order_dict["main"][1])
         desert_line = fmt_line.format('Desert', order_dict["desert"][0], order_dict["desert"][1])
-        total_line = '{0:>36} {1:>8}'.format('Total:', "{:.2f}".format(order_dict["total"]))
+        total_line = '{0:>36} {1:>8}'.format('Total:', fmt_float(order_dict["total"]))
         text = f'Receipt\n\n{sep_line}\n{starter_line}\n{main_line}\n{desert_line}\n{sep_line}\n{total_line}\n'
         mem = io.BytesIO()
         mem.write(text.encode(encoding="utf-8"))
@@ -92,7 +94,8 @@ def download_receipt(order):
 def upload_menu():
     """
     View that allows the user to upload a CSV file containing a menu, then sorts the data by course and
-    price, and finally sends it back to the the client as an attachment.
+    price and writes the new CSV to a temp file. Finally it reloads the page with an embedded script
+    that will load the route '/download_menu' in the background.
     """
     menu = {}
     form = MenuUploadCSVForm()
@@ -131,7 +134,7 @@ def upload_menu():
                         if error_count == 0:
                             if course not in menu:
                                 menu[course] = []
-                        menu[course].append((dish,price))
+                        menu[course].append((dish,float(price)))
                 if error_count > 0:
                     raise ValueError
                 flash('Menu uploaded', 'success')
@@ -142,7 +145,7 @@ def upload_menu():
             finally:
                 silent_remove(filepath)
             try:
-                # Sort the uploaded data then write it to a CSV and send to the client. 
+                # Sort the uploaded data then write it to a CSV. 
                 app.logger.debug(f'{sorted(menu.keys())=}')
                 output_str = ""
                 line = ['Course','Dish','Price']
@@ -155,17 +158,39 @@ def upload_menu():
                     for item in course_items:
                         line = [key]
                         line.append(item[0])
-                        line.append(item[1])
+                        line.append(fmt_float(item[1]))
                         output_str += ','.join(line) + '\n'
-                mem = io.BytesIO()
-                mem.write(output_str.encode(encoding="utf-8"))
-                mem.seek(0)
-                return send_file(mem, as_attachment=True, download_name='menu.csv', mimetype='text/csv')
+                
+                fd, path = tfile.mkstemp(suffix=".csv",prefix="menu")
+                with os.fdopen(fd, "w+") as fo:
+                    fo.write(output_str)
+                app.logger.debug(f'{path=}')
+                flash('Your download will begin shortly', 'success')
+                esc_path = urllib.parse.quote(path, safe='')
+                return render_template('upload_menu.html', title='Upload Menu File', form=form, download_file=esc_path)
             except Exception as err:
                 flash('File download failed.', 'danger')
                 app.logger.error(f'Exception occurred: {err=}')
             
-    return render_template('upload_menu.html', title='Upload Menu File', form=form)
+    return render_template('upload_menu.html', title='Upload Menu File', form=form, download_file=None)
+
+@app.route('/download_menu/<path>')
+def download_menu(path):
+    """Read the file at 'path', delete it then send the contents to the client."""
+    unesc_path = urllib.parse.unquote(path)
+    app.logger.debug(f'{unesc_path=}')
+    try:
+        with open(unesc_path, 'r') as f:
+            contents = f.read()
+        os.remove(unesc_path)
+        mem = io.BytesIO()
+        mem.write(contents.encode(encoding="utf-8"))
+        mem.seek(0)
+        return send_file(mem, as_attachment=True, download_name='menu.csv', mimetype='text/csv')
+    except Exception as err:
+        app.logger.error(f'Exception occurred: {err=}')
+    finally:
+        silent_remove(path)
 
 #############################
 # Helper functions
@@ -178,6 +203,10 @@ def is_float(num: str):
         return True
     except ValueError:
         return False
+
+def fmt_float(f: float):
+    """Format a float as a string with two decimal places."""
+    return "{:.2f}".format(f)
 
 def lookup_dish(course, dish):
     """Look up a dish in the global menu_items dict. Returns a tuple (dish,price) or None."""

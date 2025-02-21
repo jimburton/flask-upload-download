@@ -8,21 +8,52 @@
 
 <form action={{ url_for('order') }} method='POST'>
   {{ form.csrf_token() }}
-  
-<h1>Starter</h1>
 
-{{ form.starter(class_="unstyled") }}
+<!--
+To display a RadioField with the default styling you can simply type form.myradiofield.
+If you want to change the styling, e.g. not show the items as list items, you need to iterate
+through them yourself as below.
+  -->
 
-<h1>Main</h1>
+  <table>
+    <tr>
+      <td colspan=2><h1>Starters</h1></td>
+    </tr>
 
-{{ form.main(class_="unstyled") }}
+    {% for item in form.starter %}
+    <tr>
+      <td>{{ item.label }}</td>
+      <td>{{ item }}</td>
+    </tr>
+    {% endfor %}
 
-<h1>Desert</h1>
+    <tr>
+      <td colspan=2><h1>Mains</h1></td>
+    </tr>
 
-{{ form.desert(class_="unstyled") }}
+    {% for item in form.main %}
+    <tr>
+      <td>{{ item.label }}</td>
+      <td>{{ item }}</td>
+    </tr>
+    {% endfor %}
 
-{{ form.submit }}
+    <tr>
+      <td colspan=2><h1>Deserts</h1></td>
+    </tr>
 
+    {% for item in form.desert %}
+    <tr>
+      <td>{{ item.label }}</td>
+      <td>{{ item }}</td>
+    </tr>
+    {% endfor %}
+
+    <tr>
+      <td>{{ form.submit }}</td>
+      <td>&nbsp;</td>
+    </tr>
+</table>
 </form>
 
 
