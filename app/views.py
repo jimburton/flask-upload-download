@@ -85,8 +85,7 @@ def download_receipt(order):
         mem.seek(0)
         return send_file(mem, as_attachment=True, download_name='receipt.txt', mimetype='text/plain')
     except Exception as err:
-        flash(f'File Download failed.'
-              ' please try again', 'danger')
+        flash('File Download failed. Please try again', 'danger')
         app.logger.error(f'Exception occurred in File Download: {err=}')
     return redirect(url_for('receipt', order=order_dict))
 
@@ -196,7 +195,7 @@ def download_menu(path):
 # Helper functions
 #############################
 
-def is_float(num: str):
+def is_float(num: str) -> bool:
     """Returns True if num can be converted to a float, otherwise false."""
     try:
         float(num)
@@ -204,11 +203,11 @@ def is_float(num: str):
     except ValueError:
         return False
 
-def fmt_float(f: float):
+def fmt_float(f: float) -> str:
     """Format a float as a string with two decimal places."""
     return "{:.2f}".format(f)
 
-def lookup_dish(course, dish):
+def lookup_dish(course: str, dish: str) -> tuple[str,str]|None:
     """Look up a dish in the global menu_items dict. Returns a tuple (dish,price) or None."""
     global menu_items
     app.logger.debug(f'Looking up {course}, {dish}')
@@ -220,7 +219,7 @@ def lookup_dish(course, dish):
             return (data[0],data[1])
     return None
 
-def silent_remove(filepath):
+def silent_remove(filepath: str) -> None:
     """Utility function to attempt to remove a file but silently cancel any exceptions if anything goes wrong."""
     try:
         os.remove(filepath)
